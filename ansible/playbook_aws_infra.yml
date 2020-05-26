@@ -1,0 +1,5 @@
+- hosts: test-server
+  connection: local
+  gather_facts: no
+  roles:
+    - ec2

@@ -1,0 +1,15 @@
+
+ec2_region: ap-northeast-1
+ec2_instance_type: t2.micro
+ec2_image: ami-2724cf58   # Amazon Linux 2 LTS Candidate 2 AMI (HVM)
+ec2_key_name: baud-kensyu
+ec2_volumes:
+  - device_name: /dev/xvda
+    volume_type: gp2
+    volume_size: 8
+    delete_on_termination: true
+#ec2_instance_profile_name:
+#ec2_group: ['']
+ec2_assign_public_ip: yes
+ec2_vpc_subnet_id: subnet-003ca2ca504a3b13e
+ 
