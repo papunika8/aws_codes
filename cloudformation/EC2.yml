@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create EC2 Instance
+
+Mappings: 
+  RegionMap: 
+    AMIID:
+      hvm: "ami-0a54aef4ef3b5f881"
+    InstanceType:
+      free: "t2.micro"
+    keypeer:
+      name: baudroie
+
+Parameters:
+  MainPublicSubnetId:
+    Type: String
+    Default: LabVPC-MainPublicSubnet
+  MainNGWSubnetId:
+    Type: String
+    Default: LabVPC-MainNGWSubnet
+  MainPrivateSubnetId:
+    Type: String
+    Default: LabVPC-MainPrivateSubnet
+  SubPrivateSubnetId:
+    Type: String
+    Default: LabVPC-SubPrivateSubnet
+  MainPublicSGId:
+    Type: String
+    Default: LabVPC-MainPublicSG
+  MainPrivateSGId:
+    Type: String
+    Default: LabVPC-MainPrivateSG
+  SubPrivateSGId:
+    Type: String
+    Default: LabVPC-SubPrivateSG
+  PrivateInstanceprofile:
+    Type: String
+    Default: LabIAM-PrivateIAM
+  PublicInstanceprofile:
+    Type: String
+    Default: LabIAM-PublicIAM
+
+Resources:
+  MainPublicServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap [RegionMap, AMIID, hvm]
+      KeyName: !FindInMap [RegionMap, keypeer, name]
+      InstanceType: !FindInMap [RegionMap, InstanceType, free]
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          GroupSet:
+            - { "Fn::ImportValue": !Ref MainPublicSGId }
+          SubnetId: { "Fn::ImportValue": !Ref MainPublicSubnetId }
+      Tags:
+      - Key: Name
+        Value: Bkk-main-public-server
+
+  MainPrivateServer:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: !FindInMap [RegionMap, AMIID, hvm]
+      KeyName: !FindInMap [RegionMap, keypeer, name]
+      InstanceType: !FindInMap [RegionMap, InstanceType, free]
+      IamInstanceProfile: { "Fn::ImportValue": !Ref PrivateInstanceprofile }
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: false
+          DeviceIndex: 0
+          GroupSet: 
+            - { "Fn::ImportValue": !Ref MainPrivateSGId }
+          SubnetId: { "Fn::ImportValue": !Ref MainPrivateSubnetId }
+      Tags:
+      - Key: Name
+        Value: Bkk-main-private-server
+
+  SubPrivateServer:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: !FindInMap [RegionMap, AMIID, hvm]
+      KeyName: !FindInMap [RegionMap, keypeer, name]
+      InstanceType: !FindInMap [RegionMap, InstanceType, free]
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: false
+          DeviceIndex: 0
+          GroupSet:
+            - { "Fn::ImportValue": !Ref SubPrivateSGId }
+          SubnetId: { "Fn::ImportValue": !Ref SubPrivateSubnetId }
+      Tags:
+      - Key: Name
+        Value: Bkk-sub-private-server

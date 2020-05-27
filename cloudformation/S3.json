@@ -1,0 +1,37 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "S3Backet & S3Pricy create Via NGW",
+  "Mappings" : {
+    "Mapping" : {
+      "S3Backet" : {
+        "Name" : "bkk-server-setup"
+      }
+    }
+  },
+  "Parameters" : {
+    "MainVPC" : {
+      "Type" : "String",
+      "Default" : "LabVPC-MainVPC"
+    },
+    "MainPrivateRouteTable" : {
+      "Type" : "String",
+      "Default" : "LabVPC-MainPrivateRT"
+    }
+  },
+  "Resources":{
+    "ServerSetupS3" : {
+      "Type" : "AWS::S3::Bucket",
+      "Properties" : {
+        "BucketName" : { "Fn::FindInMap" : [ "Mapping", "S3Backet", "Name"]}
+      }
+    },
+    "VPCS3Endpoint": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Properties": {
+        "RouteTableIds": [{"Fn::ImportValue": {"Ref": "MainPrivateRouteTable"}}],
+        "ServiceName" : { "Fn::Sub": "com.amazonaws.${AWS::Region}.s3" },
+        "VpcId": { "Fn::ImportValue": "LabVPC-MainVPC" }
+      }
+    }
+  }
+}

@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description:
+  IAM poricy & Role create
+
+Outputs:
+  PrivateInstanceprofile:
+    Value: !Ref PrivateInstanceProfile
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateIAM"
+  PublicInstanceprofile:
+    Value: !Ref PublicInstanceProfile
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicIAM"
+
+
+Resources:
+###Create Role###
+  PrivateServerRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      RoleName: PrivateServer
+  ###Create Role###
+  PublicServerRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      RoleName: PublicServer
+###Create Profile###
+  PublicInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref PublicServerRole
+  PrivateInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref PrivateServerRole
+###Create ManagedPricy###
+  S3AccessPolicies:  
+    Type: AWS::IAM::Policy  
+    Properties:  
+      PolicyName: S3Access  
+      PolicyDocument:  
+        Version: '2012-10-17'  
+        Statement:  
+        - Effect: Allow  
+          Action:  
+            - "s3:*"
+          Resource: "arn:aws:s3:::*"  
+        - Effect: Allow  
+          Action: "*"  
+          Resource:  
+            - "arn:aws:s3:::<Baud-ServerSetup>"  
+            - "arn:aws:s3:::<Baud-ServerSetup>/*"
+      Roles:
+      - !Ref PublicServerRole
+      - !Ref PrivateServerRole

@@ -1,0 +1,337 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description:
+  VPC & subnet create
+
+Mappings: 
+  RegionMap: 
+    SourceIPRestrict:
+      Myhome: "1.33.240.209/32"
+
+###他のスタックでこのスタックのパラメータを参照させる###
+Outputs:
+  MainVPC:
+    Value: !Ref BkkMainVPC
+    Export:
+      Name: !Sub "${AWS::StackName}-MainVPC"
+
+  MainPublicSubnet:
+    Value: !Ref MainPublicSubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-MainPublicSubnet"
+
+  MainNGWsubnet:
+    Value: !Ref MainNGWsubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-MainNGWSubnet"
+
+  MainPrivateSubnet:
+    Value: !Ref MainPrivateSubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-MainPrivateSubnet"
+
+  SubPrivateSubnet:
+    Value: !Ref SubPrivateSubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-SubPrivateSubnet"
+
+  MainPublicSecurityGroup:
+    Value: !GetAtt 
+      - MainPublicSecurityGroup
+      - GroupId
+    Export:
+      Name: !Sub "${AWS::StackName}-MainPublicSG"
+
+  MainPrivateSecurityGroup:
+    Value: !GetAtt 
+      - MainPrivateSecurityGroup
+      - GroupId
+    Export:
+      Name: !Sub "${AWS::StackName}-MainPrivateSG"
+
+  SubPrivateSecurityGroup:
+    Value: !GetAtt 
+      - SubPrivateSecurityGroup
+      - GroupId
+    Export:
+      Name: !Sub "${AWS::StackName}-SubPrivateSG"
+
+  MainPublicRouteTable:
+    Value: !Ref MainPublicRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-MainPublicRT"
+
+  MainPrivateRouteTable:
+    Value: !Ref MainPrivateRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-MainPrivateRT"
+
+###実際に作成するリソースの内容###
+Resources:
+  BkkMainVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+      - Key: Name
+        Value: Bkk-main-VPC
+  BkkSubVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 172.16.0.0/16
+      Tags:
+      - Key: Name
+        Value: Bkk-sub-VPC
+
+  MainPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref BkkMainVPC
+      CidrBlock: 10.0.0.0/24
+      Tags:
+      - Key: Name
+        Value: Bkk-main-public-subnet
+
+  MainNGWsubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref BkkMainVPC
+      CidrBlock: 10.0.1.0/24
+      Tags:
+      - Key: Name
+        Value: Bkk-main-NGW-subnet
+
+  MainPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref BkkMainVPC
+      CidrBlock: 10.0.2.0/24
+      Tags:
+      - Key: Name
+        Value: Bkk-main-private-subnet
+
+  SubPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref BkkSubVPC
+      CidrBlock: 172.16.1.0/24
+      Tags:
+      - Key: Name
+        Value: Bkk-sub-private-subnet
+
+  MainPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref BkkMainVPC
+      Tags:
+      - Key: Name
+        Value: Bkk-main-Public-RT
+
+  MainPrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref BkkMainVPC
+      Tags:
+      - Key: Name
+        Value: Bkk-main-Private-RT
+
+  SubPrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref BkkSubVPC
+      Tags:
+      - Key: Name
+        Value: Bkk-sub-Private-RT
+
+  PubSubnet1ARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MainPublicSubnet
+      RouteTableId: !Ref MainPublicRouteTable
+
+
+  PubSubnet1CRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MainNGWsubnet
+      RouteTableId: !Ref MainPublicRouteTable
+
+  PriSubnet1ARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MainPrivateSubnet
+      RouteTableId: !Ref MainPrivateRouteTable
+
+  SubPriSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubPrivateSubnet
+      RouteTableId: !Ref SubPrivateRouteTable
+
+  BkkMainIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: Bkk-main-IGW
+
+  AttachIGWToVPC:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref BkkMainVPC
+      InternetGatewayId: !Ref BkkMainIGW
+
+  MainPubulicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: BkkMainIGW
+    Properties:
+      RouteTableId: !Ref MainPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref BkkMainIGW      
+
+  MainPrivateRouteGW:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref MainPrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref MainNatGateway
+
+  MainPrivateRouteForSub:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref MainPrivateRouteTable
+      DestinationCidrBlock: 172.16.0.0/16
+      VpcPeeringConnectionId: !Ref myVPCPeeringConnection
+
+  SubPrivateRouteForMain:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref SubPrivateRouteTable
+      DestinationCidrBlock: 10.0.0.0/16
+      VpcPeeringConnectionId: !Ref myVPCPeeringConnection
+
+  MainNatGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  MainNatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt MainNatGatewayEIP.AllocationId
+      SubnetId: !Ref MainNGWsubnet
+      Tags:
+      - Key: Name
+        Value: Bkk-main-NGW
+
+  MainPublicSecurityGroup :
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId : !Ref BkkMainVPC
+      GroupDescription: ForMainPublicSubnet
+      GroupName: MainPublicSG
+      SecurityGroupIngress: 
+      - CidrIp : !FindInMap [RegionMap, SourceIPRestrict, Myhome]
+        IpProtocol : tcp
+        FromPort: 22
+        ToPort : 22
+      - IpProtocol: icmp
+        FromPort: 8
+        ToPort: -1
+        CidrIp: !GetAtt BkkMainVPC.CidrBlock
+      SecurityGroupEgress: 
+      - CidrIp : !GetAtt BkkMainVPC.CidrBlock
+        IpProtocol : tcp
+        FromPort: 22
+        ToPort : 22
+      - IpProtocol: icmp
+        FromPort: 8
+        ToPort: -1
+        CidrIp: !GetAtt BkkMainVPC.CidrBlock
+      Tags:
+      - Key: Name
+        Value: Bkk-main-public-SG
+
+  MainPrivateSecurityGroup :
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      VpcId : !Ref BkkMainVPC
+      GroupDescription: ForMainPrivateSubnet
+      GroupName: MainPrivateSG
+      Tags:
+      - Key: Name
+        Value: Bkk-main-private-SG
+
+  MainPrivateInSSH:
+      Type: AWS::EC2::SecurityGroupIngress
+      Properties:
+        IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp : !GetAtt BkkMainVPC.CidrBlock
+        GroupId: !GetAtt MainPrivateSecurityGroup.GroupId
+  MainPrivateOutICMPforsub:
+      Type: AWS::EC2::SecurityGroupEgress
+      Properties:
+        IpProtocol: icmp
+        FromPort: 8
+        ToPort: -1
+        CidrIp : !GetAtt BkkSubVPC.CidrBlock
+        GroupId: !GetAtt MainPrivateSecurityGroup.GroupId
+  MainPrivateInICMP:
+      Type: AWS::EC2::SecurityGroupIngress
+      Properties:
+        IpProtocol: icmp
+        FromPort: 8
+        ToPort: -1
+        CidrIp : !GetAtt BkkMainVPC.CidrBlock
+        GroupId: !GetAtt MainPrivateSecurityGroup.GroupId
+  MainPrivateOutICMP:
+      Type: AWS::EC2::SecurityGroupEgress
+      Properties:
+        IpProtocol: icmp
+        FromPort: 8
+        ToPort: -1
+        CidrIp : !GetAtt BkkMainVPC.CidrBlock
+        GroupId: !GetAtt MainPrivateSecurityGroup.GroupId
+  MainPrivateInHTTPS:
+      Type: AWS::EC2::SecurityGroupEgress
+      Properties:
+        IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp : 0.0.0.0/0
+        GroupId: !GetAtt MainPrivateSecurityGroup.GroupId
+  MainPrivateOutHTTPS:
+      Type: AWS::EC2::SecurityGroupEgress
+      Properties:
+        IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        CidrIp : 0.0.0.0/0
+        GroupId: !GetAtt MainPrivateSecurityGroup.GroupId
+
+  SubPrivateSecurityGroup :
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId : !Ref BkkSubVPC
+      GroupDescription: ForSubPrivateSubnet
+      GroupName: SubPrivateSG
+      SecurityGroupIngress: 
+      - CidrIp : !GetAtt BkkMainVPC.CidrBlock
+        IpProtocol : icmp
+        FromPort: 8
+        ToPort : -1
+      Tags:
+      - Key: Name
+        Value: Bkk-sub-private-SG
+
+  myVPCPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+       VpcId:
+         Ref: BkkMainVPC
+       PeerVpcId:
+         Ref: BkkSubVPC
+       Tags:
+       - Key: Name
+         Value: Bkk-main-sub-peering
